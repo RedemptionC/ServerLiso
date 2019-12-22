@@ -35,7 +35,7 @@
  *
  * We hack it, and we undef the macro, and redefine it to something else!
  *
- * The usage of this macro will be clear from the lex-yacc-example.
+ * The usage of this macro will be clear from the lex-yacc-example.??????我知道啥
  */
 
 /* We need some global state (must be defined in parser.y) */

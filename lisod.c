@@ -82,14 +82,14 @@ void process_request(int sockfd)
     int size = 0;
     while ((len = recv(sockfd, line, MAXLINE, 0)) >= 0)
     {
-        fprintf(stdout, "%d says :%s", sockfd,line);
+        fprintf(stdout, "%d says :%s", sockfd, line);
         // send(sockfd, buf, len, 0);
         sprintf(buf, "%s%s", buf, line);
         // 遇到空行表示结束
         if (!strcmp(line, "\r\n"))
             break;
         size += len;
-        memset(line,'\0',len);
+        memset(line, '\0', len);
     }
     Request *req = parse(buf, size, -1);
     if (req != NULL)
