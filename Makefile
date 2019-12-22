@@ -25,7 +25,12 @@ example: $(OBJ) example.o
 
 lisod: lisod.o csapp.o $(OBJ)   $(LDFLAGS) 
 	$(CC) -o $@ $^ $(CFLAGS) $(FLAGS)
-# hello:
-# 	echo hello
+
+run:
+	./lisod 15441
+
+test:
+	./cp1_checker.py  127.0.0.1 15441 1000 10 500
+
 clean:
 	rm -f *~ *.o example lex.yy.c y.tab.c y.tab.h lisod

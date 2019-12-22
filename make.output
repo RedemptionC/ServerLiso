@@ -1,0 +1,8 @@
+yacc -d parser.y
+gcc -g -Wall  -c -o lisod.o lisod.c -I.
+gcc -g -Wall  -c -o csapp.o csapp.c -I.
+gcc -g -Wall  -c -o y.tab.o y.tab.c -I.
+flex lexer.l
+gcc -g -Wall  -c -o lex.yy.o lex.yy.c -I.
+gcc -g -Wall  -c -o parse.o parse.c -I.
+gcc -o lisod lisod.o csapp.o y.tab.o lex.yy.o parse.o /usr/lib/x86_64-linux-gnu/libpthread.so -I. -g -Wall

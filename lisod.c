@@ -78,28 +78,32 @@ void process_request(int sockfd)
 {
     int len;
     char buf[MAXBUF];
-    char line[MAXLINE];0;
-    int size=0;
+    char line[MAXLINE];
+    int size = 0;
     while ((len = recv(sockfd, line, MAXLINE, 0)) >= 0)
     {
-        fprintf(stdout, "%s", buf);
+        fprintf(stdout, "%d says :%s", sockfd,line);
         // send(sockfd, buf, len, 0);
-        sprintf(buf,"%s%s",buf,line);
-        size+=len;
+        sprintf(buf, "%s%s", buf, line);
+        // 遇到空行表示结束
+        if (!strcmp(line, "\r\n"))
+            break;
+        size += len;
+        memset(line,'\0',len);
     }
-    Request * req= parse(buf,size,-1);
-    if(req!=NULL)
+    Request *req = parse(buf, size, -1);
+    if (req != NULL)
     {
         // 解析成功，原路返回
-        fprintf(stderr,"valid request\n");
-        send(sockfd,buf,size,0);
+        fprintf(stderr, "valid request\n");
+        send(sockfd, buf, size, 0);
     }
     else
     {
         // 解析失败，返回一个400
         char response[MAXLINE];
-        sprintf(response,"HTTP/1.1 400 Bad Request\r\n");
-        send(sockfd,response,strlen(response),0);
-        fprintf(stderr,"not valid\n");
+        sprintf(response, "HTTP/1.1 400 Bad Request\r\n");
+        send(sockfd, response, strlen(response), 0);
+        fprintf(stderr, "not valid\n");
     }
 }
