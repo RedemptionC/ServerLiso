@@ -1,13 +1,13 @@
 CC=gcc
 CFLAGS=-I.
 DEPS = parse.h y.tab.h
-OBJ = y.tab.o lex.yy.o parse.o example.o
+OBJ = y.tab.o lex.yy.o parse.o 
 FLAGS = -g -Wall
 LDFLAGS = -lpthread
 
 default:all
 
-all: example lisod
+all: lisod
 
 lex.yy.c: lexer.l
 	flex $^
@@ -15,14 +15,17 @@ lex.yy.c: lexer.l
 y.tab.c: parser.y
 	yacc -d $^
 
-%.o: %.c $(DEPS)
-	$(CC) $(FLAGS) -c -o $@ $< $(CFLAGS)
+y.tab.h: y.tab.c
 
-example: $(OBJ)
+%.o: %.c $(DEPS)
+	$(CC) $(FLAGS)  -c -o $@ $< $(CFLAGS)
+
+example: $(OBJ) example.o
 	$(CC) -o $@ $^ $(CFLAGS)
 
-lisod: lisod.o csapp.o $(LDFLAGS)
-	$(CC) -o $@ $^ $(CFLAGS) 
-
+lisod: lisod.o csapp.o $(OBJ)   $(LDFLAGS) 
+	$(CC) -o $@ $^ $(CFLAGS) $(FLAGS)
+# hello:
+# 	echo hello
 clean:
 	rm -f *~ *.o example lex.yy.c y.tab.c y.tab.h lisod
