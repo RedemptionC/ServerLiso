@@ -70,7 +70,7 @@ int main(int argc, char **argv)
                 {
                     process_request(i);
                     // 是否有必要在处理完请求后把这个bit归零（不过我也想不通它为什么会一直停在4?CHECK
-                    FD_CLR(i,&read_fds);
+                    FD_CLR(i, &read_fds);
                 }
             }
         }
@@ -82,7 +82,9 @@ void process_request(int sockfd)
     char buf[MAXBUF];
     char line[MAXLINE];
     int size = 0;
-    while ((len = recv(sockfd, line, MAXLINE, 0)) > 0)
+    rio_t rio;
+    Rio_readinitb(&rio, sockfd);
+    while ((len = Rio_readlineb(&rio, line, MAXLINE)) > 0)
     {
         fprintf(stdout, "%d says :%s", sockfd, line);
         // send(sockfd, buf, len, 0);
@@ -93,7 +95,7 @@ void process_request(int sockfd)
         size += len;
         memset(line, '\0', len);
     }
-    Request *req = parse(buf, size, -1);
+    Request *req = parse(buf, size, sockfd);
     if (req != NULL)
     {
         // 解析成功，原路返回
