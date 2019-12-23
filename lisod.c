@@ -69,6 +69,8 @@ int main(int argc, char **argv)
                 if (FD_ISSET(i, &ready_fds))
                 {
                     process_request(i);
+                    // 是否有必要在处理完请求后把这个bit归零（不过我也想不通它为什么会一直停在4?CHECK
+                    FD_CLR(i,&read_fds);
                 }
             }
         }
@@ -80,7 +82,7 @@ void process_request(int sockfd)
     char buf[MAXBUF];
     char line[MAXLINE];
     int size = 0;
-    while ((len = recv(sockfd, line, MAXLINE, 0)) >= 0)
+    while ((len = recv(sockfd, line, MAXLINE, 0)) > 0)
     {
         fprintf(stdout, "%d says :%s", sockfd, line);
         // send(sockfd, buf, len, 0);
