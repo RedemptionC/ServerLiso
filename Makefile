@@ -7,7 +7,7 @@ LDFLAGS = -lpthread
 
 default:all
 
-all: lisod
+all: lisod example
 
 lex.yy.c: lexer.l
 	flex $^
@@ -29,8 +29,11 @@ lisod: lisod.o csapp.o $(OBJ)   $(LDFLAGS)
 run:
 	./lisod 15441
 
-test:
-	./cp1_checker.py  127.0.0.1 15441 1000 10 500
+test-big:
+	python cp1_checker.py  127.0.0.1 15441 1000 10 500
+
+test-small:
+	python cp1_checker.py  127.0.0.1 15441 10 10 10
 
 clean:
 	rm -f *~ *.o example lex.yy.c y.tab.c y.tab.h lisod
