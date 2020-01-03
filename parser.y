@@ -8,7 +8,9 @@
 #include "parse.h"
 
 /* Define YACCDEBUG to enable debug messages for this lex file */
-//#define YACCDEBUG
+#define YACCDEBUG 1
+//for debug
+// #define YYDEBUG 1
 #define YYERROR_VERBOSE
 #ifdef YACCDEBUG
 #include <stdio.h>
@@ -24,7 +26,7 @@ void set_parsing_options(char *buf, size_t siz, Request *parsing_request);
 
 /* yyparse() calls yylex() to get tokens */
 extern int yylex();
-
+// extern yyin; // 好像不能在这里restart
 
 /*
 ** Global variables required for parsing from buffer
@@ -200,7 +202,15 @@ request_header: token ows t_colon ows text ows t_crlf {
     strcpy(parsing_request->headers[parsing_request->header_count].header_name, $1);
 	strcpy(parsing_request->headers[parsing_request->header_count].header_value, $5);
 	parsing_request->header_count++;
-};
+}
+
+// request_headers:request_header;
+// 				| request_headers request_header{
+// 					parsing_request->headers=(Request_header *)realloc(parsing_request->headers,parsing_request->header_count);
+// 					// strcpy(parsing_request->headers[parsing_request->header_count].header_name, $2->);
+// 					// strcpy(parsing_request->headers[parsing_request->header_count].header_value, $2);
+// 					parsing_request->header_count++;
+// 				}
 
 
 /*
@@ -226,4 +236,10 @@ void set_parsing_options(char *buf, size_t siz, Request *request)
     parsing_request = request;
 }
 
-void yyerror (char *s) {fprintf (stderr, "%s\n", s);}
+void yyerror (char *s) 
+{
+	fprintf (stderr, "%s\n", s);
+	// yyrestart(yyin);
+	// YY_FLUSH_BUFFER();
+	// yy_flush_buffer();
+}

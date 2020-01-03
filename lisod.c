@@ -17,7 +17,6 @@ int main(int argc, char **argv)
         usage(argv[0]);
     }
     // 第一阶段只使用http port这一个参数
-    int http_port = atoi(argv[1]);
     char *http_port_str = argv[1];
 
     int listenfd, connfd;
