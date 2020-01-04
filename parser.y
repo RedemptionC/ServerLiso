@@ -52,6 +52,8 @@ Request *parsing_request;
 %union {
 	char str[8192];
 	int i;
+	Request *req;
+	Request_header *req_header;
 }
 
 %start request
@@ -94,6 +96,10 @@ Request *parsing_request;
 %type<str> ows
 %type<str> token
 %type<str> text
+// 
+%type<req_header> request_header
+%type<req_header> request_headers
+
 
 %%
 
@@ -167,6 +173,7 @@ t_backslash {
  */
 text: allowed_char_for_text {
 	YPRINTF("text: Matched rule 1.\n");
+	// 表示把匹配到的这个char往text的值里写
 	snprintf($$, 8192, "%c", $1);
 }; |
 text ows allowed_char_for_text {
@@ -202,15 +209,22 @@ request_header: token ows t_colon ows text ows t_crlf {
     strcpy(parsing_request->headers[parsing_request->header_count].header_name, $1);
 	strcpy(parsing_request->headers[parsing_request->header_count].header_value, $5);
 	parsing_request->header_count++;
+	parsing_request->headers=(Request_header *)realloc(parsing_request->headers,(parsing_request->header_count+1)*sizeof(Request_header));
 }
 
-// request_headers:request_header;
-// 				| request_headers request_header{
-// 					parsing_request->headers=(Request_header *)realloc(parsing_request->headers,parsing_request->header_count);
-// 					// strcpy(parsing_request->headers[parsing_request->header_count].header_name, $2->);
-// 					// strcpy(parsing_request->headers[parsing_request->header_count].header_value, $2);
-// 					parsing_request->header_count++;
-// 				}
+request_headers:request_header{
+		// $$=$1;
+		// snprintf($$,8192,"%s",$1);
+		YPRINTF("request_headers:Matched rule 1\n");
+		// strcpy(parsing_request->headers[parsing_request->header_count].header_name, $1->header_count);
+		// strcpy(parsing_request->headers[parsing_request->header_count].header_value, $1->header_value);
+		// parsing_request->header_count++;
+	};
+	| request_headers request_header{
+		YPRINTF("request_headers:Matched rule 2\n");
+		// snprintf($$,8192,"%s%s",$1,$2);
+		// parsing_request->header_count++;
+	}
 
 
 /*
@@ -219,8 +233,9 @@ request_header: token ows t_colon ows text ows t_crlf {
  * and the annotated excerpted text on the course website. All the best!
  *
  */
-request: request_line request_header t_crlf{
+request: request_line request_headers t_crlf{
 	YPRINTF("parsing_request: Matched Success.\n");
+	// YPRINTF("THIS IS THE REQUEST:\n%s",$2);
 	return SUCCESS;
 };
 

@@ -47,6 +47,7 @@ for i in xrange(numTrials):
     socketSubset = random.sample(socketList, numConnections)
     for j in xrange(numWritesReads):
         random_index = random.randrange(len(GOOD_REQUESTS) + len(BAD_REQUESTS))
+        # GOOD_REQUESTS是一个list，这里的len得到的是1，而不是里面字符串的长度
         if random_index < len(GOOD_REQUESTS):
             random_string = GOOD_REQUESTS[random_index]
             randomLen.append(len(random_string))
