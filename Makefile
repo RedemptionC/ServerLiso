@@ -33,7 +33,12 @@ test-big:
 	python cp1_checker.py  127.0.0.1 15441 1000 10 500
 
 test-small:
-	python cp1_checker.py  127.0.0.1 15441 10 10 10
+	# trails writeread connection
+	python cp1_checker.py  127.0.0.1 15441 10 20 20
 
 clean:
 	rm -f *~ *.o example lex.yy.c y.tab.c y.tab.h lisod
+rebuild:
+	# 可以这么写🐎
+	make clean
+	make 
