@@ -30,9 +30,15 @@ RECV_EACH_TIMEOUT = 0.01
 # 建立#connection个连接
 for i in xrange(numConnections):
     s = socket(AF_INET, SOCK_STREAM)
-    s.connect((serverHost, serverPort))
+    try:
+        s.connect((serverHost, serverPort))
+    except error as err:
+        print str(i)+str(err)
+        continue
     socketList.append(s)
 
+if len(socketList)==0:
+    sys.exit()
 
 GOOD_REQUESTS = ['GET / HTTP/1.1\r\nUser-Agent: 441UserAgent/1.0.0\r\n\r\n']
 BAD_REQUESTS = [
@@ -79,11 +85,13 @@ for i in xrange(numTrials):
             # 如果已经接收到全部数据，就结束
             if len(data) == randomLen[j]:
                 break
+                # continue
             #　如果没有接收到全部数据，就设置一个超时时间，然后接着接收，直到超时或者接受完全
             socketSubset[j].settimeout(RECV_EACH_TIMEOUT)
             data += socketSubset[j].recv(randomLen[j])
             if time.time() - start_time > RECV_TOTAL_TIMEOUT:
                 break
+                # continue
         if data != randomData[j]:
             sys.stderr.write("Error: Data received is not the same as sent! \n")
             sys.exit(1)

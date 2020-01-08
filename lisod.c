@@ -8,7 +8,7 @@ void usage(char *liso)
     unix_error(buf);
 }
 
-void process_request(int sockfd, fd_set ready_set);
+void process_request(int sockfd, fd_set *ready_set);
 
 int main(int argc, char **argv)
 {
@@ -43,8 +43,8 @@ int main(int argc, char **argv)
         // select每次返回后，会将待监听的集合修改为ready_set
         ready_fds = read_fds;
         // 设置timeout为NULL,永远不会timeout，一直等到有readyfd
-        int rs=Select(max_fd, &ready_fds, NULL, NULL, NULL);
-        printf("result of select:%d\n",rs);
+        int rs = Select(max_fd, &ready_fds, NULL, NULL, NULL);
+        printf("result of select:%d\n", rs);
         // 如果listenfd处于ready，说明可以accept
         if (FD_ISSET(listenfd, &ready_fds))
         {
@@ -72,13 +72,13 @@ int main(int argc, char **argv)
             {
                 if (FD_ISSET(i, &ready_fds))
                 {
-                    process_request(i, read_fds);
+                    process_request(i, &read_fds);
                 }
             }
         }
     }
 }
-void process_request(int sockfd, fd_set ready_set)
+void process_request(int sockfd, fd_set *ready_set)
 {
     int len;
     char buf[MAXBUF];
@@ -102,7 +102,7 @@ void process_request(int sockfd, fd_set ready_set)
     // 如果recv的返回值为0,表示已关闭?CHECK
     if (len == 0)
     {
-        FD_CLR(sockfd, &ready_set);
+        FD_CLR(sockfd, ready_set);
         return;
     }
     Request *req = parse(buf, size, sockfd);
