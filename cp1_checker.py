@@ -28,12 +28,12 @@ RECV_TOTAL_TIMEOUT = 0.1
 RECV_EACH_TIMEOUT = 0.01
 
 # 建立#connection个连接
-for i in xrange(numConnections):
+for i in range(numConnections):
     s = socket(AF_INET, SOCK_STREAM)
     try:
         s.connect((serverHost, serverPort))
     except error as err:
-        print str(i)+str(err)
+        print (str(i)+str(err))
         continue
     socketList.append(s)
 
@@ -49,7 +49,7 @@ BAD_REQUESTS = [
 
 BAD_REQUEST_RESPONSE = 'HTTP/1.1 400 Bad Request\r\n\r\n'
 
-for i in xrange(numTrials):
+for i in range(numTrials):
     socketSubset = []
     randomData = []
     randomLen = []
@@ -57,7 +57,7 @@ for i in xrange(numTrials):
     socketSubset = random.sample(socketList, numConnections)
     # #WritesReads我暂时也只能处理很小的一个值 FIND OUT WHY
     # 在这个循环内：选择发送valid/invalid request，然后发送
-    for j in xrange(numWritesReads):
+    for j in range(numWritesReads):
         # 在[0,#请求的种类)中随机取一个值，在这里就是在[0,4):0,1,2,3中取
         random_index = random.randrange(len(GOOD_REQUESTS) + len(BAD_REQUESTS))
         # 意思是random_index为0时，发送valid request
@@ -73,13 +73,13 @@ for i in xrange(numTrials):
             randomLen.append(len(BAD_REQUEST_RESPONSE))
             randomData.append(BAD_REQUEST_RESPONSE)
         # 设置完毕后，发送请求
-        socketSubset[j].send(random_string)
-        print str(socketSubset[j].fileno())+"send message"
+        socketSubset[j].send(random_string.encode())
+        print (str(socketSubset[j].fileno())+"send message")
 
     # 这个循环里，就开始接收数据
-    for j in xrange(numWritesReads):
-        data = socketSubset[j].recv(randomLen[j])
-        print str(socketSubset[j].fileno())+" recv "+data
+    for j in range(numWritesReads):
+        data = socketSubset[j].recv(randomLen[j]).decode()
+        print (str(socketSubset[j].fileno())+" recv "+data)
         start_time = time.time()
         while True:
             # 如果已经接收到全部数据，就结束
@@ -95,8 +95,9 @@ for i in xrange(numTrials):
         if data != randomData[j]:
             sys.stderr.write("Error: Data received is not the same as sent! \n")
             sys.exit(1)
+            print(data)
 
-for i in xrange(numConnections):
+for i in range(numConnections):
     socketList[i].close()
 
-print "Success!"
+print ("Success!")
