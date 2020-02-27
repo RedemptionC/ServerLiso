@@ -11,6 +11,7 @@ for i in range(10):
     # print(example_req)
     res=s.recv(1024).decode('utf-8')
     print(res==response[i%2])
-    
+    if res!=response[i%2]:
+        print(res)
     s.close()
 

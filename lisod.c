@@ -9,6 +9,11 @@ void usage(char *liso)
 }
 
 void process_request(int sockfd, fd_set *ready_set);
+void deal_with_request(int sockfd, Request *req);
+void print_request(Request *req);
+void do_head(int sockfd, Request *req);
+void do_get(int sockfd, Request *req);
+void do_post(int sockfd, Request *req);
 
 int main(int argc, char **argv)
 {
@@ -108,18 +113,269 @@ void process_request(int sockfd, fd_set *ready_set)
     Request *req = parse(buf, size, sockfd);
     if (req != NULL)
     {
-        // 解析成功，原路返回
-        fprintf(stderr, "valid request\n");
-        send(sockfd, buf, size, 0);
+        // cp1中：echo
+        // send(sockfd, buf, size, 0);
+        // 解析成功，处理request(cp2)
+        deal_with_request(sockfd, req);
     }
     else
     {
         // 解析失败，返回一个400
-        char response[MAXLINE];
-        sprintf(response, "HTTP/1.1 400 Bad Request\r\n\r\n");
-        send(sockfd, response, strlen(response), 0);
-        fprintf(stderr, "not valid\n");
+        // char response[MAXLINE];
+        // sprintf(response, "HTTP/1.1 400 Bad Request\r\n\r\n");
+        // send(sockfd, response, strlen(response), 0);
+        // fprintf(stderr, "not valid\n");
+        clienterror(sockfd, "Bad Request", "400", "Bad Request", "Bad Request");
+        memset(buf, '\0', MAXBUF);
+        // return;
     }
     // 不加这一行，多个request会放在一个buf里(why?)
     memset(buf, '\0', MAXBUF);
+}
+void do_head(int sockfd, Request *req)
+{
+    char filename[MAXLINE], cgiargs[MAXLINE];
+    struct stat sbuf;
+    int is_static;
+    is_static = parse_uri(req->http_uri, filename, cgiargs);
+    // 文件是否存在
+    if (stat(filename, &sbuf) < 0)
+    {
+
+        clienterror(sockfd, filename, "404", "Not Found", "Not Found");
+        return;
+    }
+    if (is_static)
+    {
+        if (!(S_ISREG(sbuf.st_mode)) || !(S_IRUSR & sbuf.st_mode))
+        {
+            clienterror(sockfd, filename, "403", "Forbidden", "Liso can not read the file");
+            return;
+        }
+        // 返回静态内容
+        serve_static(sockfd, filename, sbuf.st_size, 0);
+    }
+}
+void do_get(int sockfd, Request *req)
+{
+    char filename[MAXLINE], cgiargs[MAXLINE];
+    struct stat sbuf;
+    int is_static;
+    is_static = parse_uri(req->http_uri, filename, cgiargs);
+    // 文件是否存在
+    if (stat(filename, &sbuf) < 0)
+    {
+
+        clienterror(sockfd, filename, "404", "Not Found", "Not Found");
+        return;
+    }
+    if (is_static)
+    {
+        if (!(S_ISREG(sbuf.st_mode)) || !(S_IRUSR & sbuf.st_mode))
+        {
+            clienterror(sockfd, filename, "403", "Forbidden", "Liso can not read the file");
+            return;
+        }
+        // 返回静态内容
+        serve_static(sockfd, filename, sbuf.st_size, 1);
+    }
+    if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode))
+    {
+        clienterror(sockfd, filename, "403", "Forbidden",
+                    "Liso couldn't run the CGI program");
+        return;
+    }
+    serve_dynamic(sockfd, filename, cgiargs);
+}
+void do_post(int sockfd, Request *req)
+{
+    char response[MAXLINE];
+    char content_length[32];
+
+    memset(content_length, 0, sizeof(content_length));
+    get_header_value(req, "Content-Length", content_length);
+    if (strlen(content_length) == 0)
+    {
+        clienterror(sockfd, "Length Reqired", "401", "Length Reqired", "Length Reqired");
+        return 0;
+    }
+    char filename[MAXLINE], cgiargs[MAXLINE];
+    struct stat sbuf;
+    int is_static;
+    is_static = parse_uri(req->http_uri, filename, cgiargs);
+    // 文件是否存在
+    if (stat(filename, &sbuf) < 0)
+    {
+
+        clienterror(sockfd, filename, "404", "Not Found", "Not Found");
+        return;
+    }
+    if (!is_static)
+    {
+        if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode))
+        {
+            clienterror(sockfd, filename, "403", "Forbidden",
+                        "Liso couldn't run the CGI program");
+            return;
+        }
+        serve_dynamic(sockfd, filename, cgiargs);
+    }
+}
+void deal_with_request(int sockfd, Request *req)
+{
+    if (!strcmp(req->http_method, "GET"))
+    {
+        do_get(sockfd, req);
+    }
+    else if (!strcmp(req->http_method, "HEAD"))
+    {
+        do_head(sockfd, req);
+    }
+    else if (!strcmp(req->http_method, "POST"))
+    {
+        do_post(sockfd, req);
+    }
+    else
+    {
+        // char response[MAXLINE];
+        // sprintf(response, "HTTP/1.1 501 Not Implemented\r\n\r\n");
+        // send(sockfd, response, strlen(response), 0);
+        clienterror(sockfd, req->http_method, "501", "Not Implemented", "Not Implemented");
+        return;
+    }
+}
+void print_request(Request *request)
+{
+    int index;
+    printf("Http Method %s\n", request->http_method);
+    printf("Http Version %s\n", request->http_version);
+    printf("Http Uri %s\n", request->http_uri);
+    for (index = 0; index < request->header_count; index++)
+    {
+        printf("Request Header\n");
+        printf("Header name %s Header Value %s\n", request->headers[index].header_name, request->headers[index].header_value);
+    }
+}
+int parse_uri(char *uri, char *filename, char *cgiargs)
+{
+    char *ptr;
+
+    if (!strstr(uri, "cgi-bin"))
+    { /* Static content */                 //line:netp:parseuri:isstatic
+        strcpy(cgiargs, "");               //line:netp:parseuri:clearcgi
+        strcpy(filename, ".");             //line:netp:parseuri:beginconvert1
+        strcat(filename, uri);             //line:netp:parseuri:endconvert1
+        if (uri[strlen(uri) - 1] == '/')   //line:netp:parseuri:slashcheck
+            strcat(filename, "home.html"); //line:netp:parseuri:appenddefault
+        return 1;
+    }
+    else
+    { /* Dynamic content */    //line:netp:parseuri:isdynamic
+        ptr = index(uri, '?'); //line:netp:parseuri:beginextract
+        if (ptr)
+        {
+            strcpy(cgiargs, ptr + 1);
+            *ptr = '\0';
+        }
+        else
+            strcpy(cgiargs, ""); //line:netp:parseuri:endextract
+        strcpy(filename, ".");   //line:netp:parseuri:beginconvert2
+        strcat(filename, uri);   //line:netp:parseuri:endconvert2
+        return 0;
+    }
+}
+void clienterror(int fd, char *cause, char *errnum,
+                 char *shortmsg, char *longmsg)
+{
+    char buf[MAXLINE], body[MAXBUF];
+
+    /* Build the HTTP response body */
+    sprintf(body, "<html><title>Liso Error</title>");
+    sprintf(body, "%s<body bgcolor="
+                  "ffffff"
+                  ">\r\n",
+            body);
+    sprintf(body, "%s%s: %s\r\n", body, errnum, shortmsg);
+    sprintf(body, "%s<p>%s: %s\r\n", body, longmsg, cause);
+    sprintf(body, "%s<hr><em>The Liso  Web server</em>\r\n", body);
+
+    /* Print the HTTP response */
+    sprintf(buf, "HTTP/1.0 %s %s\r\n", errnum, shortmsg);
+    Rio_writen(fd, buf, strlen(buf));
+    sprintf(buf, "Content-type: text/html\r\n");
+    Rio_writen(fd, buf, strlen(buf));
+    sprintf(buf, "Content-length: %d\r\n\r\n", (int)strlen(body));
+    Rio_writen(fd, buf, strlen(buf));
+    Rio_writen(fd, body, strlen(body));
+}
+void get_filetype(char *filename, char *filetype)
+{
+    if (strstr(filename, ".html"))
+        strcpy(filetype, "text/html");
+    else if (strstr(filename, ".gif"))
+        strcpy(filetype, "image/gif");
+    else if (strstr(filename, ".png"))
+        strcpy(filetype, "image/png");
+    else if (strstr(filename, ".jpg"))
+        strcpy(filetype, "image/jpeg");
+    else
+        strcpy(filetype, "text/plain");
+}
+void serve_static(int fd, char *filename, int filesize, int withBody)
+{
+    int srcfd;
+    char *srcp, filetype[MAXLINE], buf[MAXBUF];
+
+    /* Send response headers to client */
+    get_filetype(filename, filetype);    //line:netp:servestatic:getfiletype
+    sprintf(buf, "HTTP/1.0 200 OK\r\n"); //line:netp:servestatic:beginserve
+    sprintf(buf, "%sServer: Liso Web Server\r\n", buf);
+    sprintf(buf, "%sConnection: close\r\n", buf);
+    sprintf(buf, "%sContent-length: %d\r\n", buf, filesize);
+    sprintf(buf, "%sContent-type: %s\r\n\r\n", buf, filetype);
+    Rio_writen(fd, buf, strlen(buf)); //line:netp:servestatic:endserve
+    printf("Response headers:\n");
+    printf("%s", buf);
+
+    if (withBody)
+    {
+        /* Send response body to client */
+        srcfd = Open(filename, O_RDONLY, 0);                        //line:netp:servestatic:open
+        srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0); //line:netp:servestatic:mmap
+        Close(srcfd);                                               //line:netp:servestatic:close
+        Rio_writen(fd, srcp, filesize);                             //line:netp:servestatic:write
+        Munmap(srcp, filesize);                                     //line:netp:servestatic:munmap
+    }
+}
+// 根据给定键，设置值
+// 如果不存在就不设置hvalue
+void get_header_value(Request *request, const char *hname, char *hvalue)
+{
+    for (int i = 0; i < request->header_count; i++)
+    {
+        if (!strcmp(request->headers[i].header_name, hname))
+        {
+            strcpy(hvalue, request->headers[i].header_value);
+            return;
+        }
+    }
+}
+void serve_dynamic(int fd, char *filename, char *cgiargs)
+{
+    char buf[MAXLINE], *emptylist[] = {NULL};
+
+    /* Return first part of HTTP response */
+    sprintf(buf, "HTTP/1.0 200 OK\r\n");
+    Rio_writen(fd, buf, strlen(buf));
+    sprintf(buf, "Server: Liso Web Server\r\n");
+    Rio_writen(fd, buf, strlen(buf));
+
+    if (Fork() == 0)
+    { /* Child */ //line:netp:servedynamic:fork
+        /* Real server would set all CGI vars here */
+        setenv("QUERY_STRING", cgiargs, 1);                         //line:netp:servedynamic:setenv
+        Dup2(fd, STDOUT_FILENO); /* Redirect stdout to client */    //line:netp:servedynamic:dup2
+        Execve(filename, emptylist, environ); /* Run CGI program */ //line:netp:servedynamic:execve
+    }
+    Wait(NULL); /* Parent waits for and reaps child */ //line:netp:servedynamic:wait
 }
