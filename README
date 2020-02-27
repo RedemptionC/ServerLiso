@@ -12,17 +12,31 @@ cgi-bin/calculator.c    cgi小程序之计算器
 cgi-bin/login           cgi小程序之简单登录
 cgi-bin/login.c         
 csapp.c
-csapp.h                 
-echo_client.c
-echo_server.c
-example.c
-home.html
-lexer.l
-lisod.c
-og_cp1_checker.py
-one_req.py
+csapp.h                 包含一些helper函数，截取自CS:APP
+example.c       测试parser
+home.html       网站主界面
+lexer.l         flex配置文件
+lisod.c         服务器主要的代码
+one_req.py      (obsolete) 测试代码
 parse.c
 parse.h
-parser.y
+parser.y        parser配置文件
 sample_request_example
 sample_request_realistic
+
+## 程序运行基本流程
+~~服务器(下用Liso指代)首先建立一个可用于listen的socket
+因为本服务器是基于select实现并发，其中(至少)需要一个fdset用来监听，是否可读（对于listen socket
+可读是指有新的client请求连接，对于client，则是代表client发来了数据处于可读状态），所以首先把
+listen socket的fd(file descriptor,文件描述符)加入fdset，然后在一个恒为真的循环中不断的判断可读
+的fd，如果是listen socket可读，那么用accept，将新连接的client的fd加入fdset，如果是client的fd可读，
+那么开始处理~~
+👆 用流程图啥的吧
+
+## 运行方式
+切换到当前目录
+make rebuild
+make run
+(默认端口为15441，可在makefile 里修改)
+也可./ lisod <port>
+
