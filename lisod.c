@@ -21,7 +21,6 @@ int main(int argc, char **argv)
     {
         usage(argv[0]);
     }
-    // 第一阶段只使用http port这一个参数
     char *http_port_str = argv[1];
 
     Signal(SIGPIPE, SIG_IGN);
@@ -94,7 +93,6 @@ void process_request(int sockfd, fd_set *ready_set)
     while ((len = Rio_readlineb(&rio, line, MAXLINE)) > 0)
     {
         fprintf(stdout, "%d says :%s", sockfd, line);
-        // send(sockfd, buf, len, 0);
         sprintf(buf, "%s%s", buf, line);
         // 但是末尾的\r\n也要算进去
         size += len;
@@ -113,23 +111,13 @@ void process_request(int sockfd, fd_set *ready_set)
     Request *req = parse(buf, size, sockfd);
     if (req != NULL)
     {
-        // cp1中：echo
-        // send(sockfd, buf, size, 0);
-        // 解析成功，处理request(cp2)
         deal_with_request(sockfd, req);
     }
     else
     {
-        // 解析失败，返回一个400
-        // char response[MAXLINE];
-        // sprintf(response, "HTTP/1.1 400 Bad Request\r\n\r\n");
-        // send(sockfd, response, strlen(response), 0);
-        // fprintf(stderr, "not valid\n");
         clienterror(sockfd, "Bad Request", "400", "Bad Request", "Bad Request");
         memset(buf, '\0', MAXBUF);
-        // return;
     }
-    // 不加这一行，多个request会放在一个buf里(why?)
     memset(buf, '\0', MAXBUF);
 }
 void do_head(int sockfd, Request *req)
@@ -237,9 +225,6 @@ void deal_with_request(int sockfd, Request *req)
     }
     else
     {
-        // char response[MAXLINE];
-        // sprintf(response, "HTTP/1.1 501 Not Implemented\r\n\r\n");
-        // send(sockfd, response, strlen(response), 0);
         clienterror(sockfd, req->http_method, "501", "Not Implemented", "Not Implemented");
         return;
     }
@@ -261,26 +246,26 @@ int parse_uri(char *uri, char *filename, char *cgiargs)
     char *ptr;
 
     if (!strstr(uri, "cgi-bin"))
-    { /* Static content */                 //line:netp:parseuri:isstatic
-        strcpy(cgiargs, "");               //line:netp:parseuri:clearcgi
-        strcpy(filename, ".");             //line:netp:parseuri:beginconvert1
-        strcat(filename, uri);             //line:netp:parseuri:endconvert1
-        if (uri[strlen(uri) - 1] == '/')   //line:netp:parseuri:slashcheck
-            strcat(filename, "home.html"); //line:netp:parseuri:appenddefault
+    { /* Static content */                 
+        strcpy(cgiargs, "");               
+        strcpy(filename, ".");             
+        strcat(filename, uri);             
+        if (uri[strlen(uri) - 1] == '/')   
+            strcat(filename, "home.html"); 
         return 1;
     }
     else
-    { /* Dynamic content */    //line:netp:parseuri:isdynamic
-        ptr = index(uri, '?'); //line:netp:parseuri:beginextract
+    { /* Dynamic content */    
+        ptr = index(uri, '?'); 
         if (ptr)
         {
             strcpy(cgiargs, ptr + 1);
             *ptr = '\0';
         }
         else
-            strcpy(cgiargs, ""); //line:netp:parseuri:endextract
-        strcpy(filename, ".");   //line:netp:parseuri:beginconvert2
-        strcat(filename, uri);   //line:netp:parseuri:endconvert2
+            strcpy(cgiargs, ""); 
+        strcpy(filename, ".");   
+        strcat(filename, uri);   
         return 0;
     }
 }
@@ -327,24 +312,24 @@ void serve_static(int fd, char *filename, int filesize, int withBody)
     char *srcp, filetype[MAXLINE], buf[MAXBUF];
 
     /* Send response headers to client */
-    get_filetype(filename, filetype);    //line:netp:servestatic:getfiletype
-    sprintf(buf, "HTTP/1.0 200 OK\r\n"); //line:netp:servestatic:beginserve
+    get_filetype(filename, filetype);    
+    sprintf(buf, "HTTP/1.0 200 OK\r\n"); 
     sprintf(buf, "%sServer: Liso Web Server\r\n", buf);
     sprintf(buf, "%sConnection: close\r\n", buf);
     sprintf(buf, "%sContent-length: %d\r\n", buf, filesize);
     sprintf(buf, "%sContent-type: %s\r\n\r\n", buf, filetype);
-    Rio_writen(fd, buf, strlen(buf)); //line:netp:servestatic:endserve
+    Rio_writen(fd, buf, strlen(buf)); 
     printf("Response headers:\n");
     printf("%s", buf);
 
     if (withBody)
     {
         /* Send response body to client */
-        srcfd = Open(filename, O_RDONLY, 0);                        //line:netp:servestatic:open
-        srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0); //line:netp:servestatic:mmap
-        Close(srcfd);                                               //line:netp:servestatic:close
-        Rio_writen(fd, srcp, filesize);                             //line:netp:servestatic:write
-        Munmap(srcp, filesize);                                     //line:netp:servestatic:munmap
+        srcfd = Open(filename, O_RDONLY, 0);                        
+        srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0); 
+        Close(srcfd);                                               
+        Rio_writen(fd, srcp, filesize);                             
+        Munmap(srcp, filesize);                                     
     }
 }
 // 根据给定键，设置值
@@ -371,11 +356,11 @@ void serve_dynamic(int fd, char *filename, char *cgiargs)
     Rio_writen(fd, buf, strlen(buf));
 
     if (Fork() == 0)
-    { /* Child */ //line:netp:servedynamic:fork
+    { /* Child */ 
         /* Real server would set all CGI vars here */
-        setenv("QUERY_STRING", cgiargs, 1);                         //line:netp:servedynamic:setenv
-        Dup2(fd, STDOUT_FILENO); /* Redirect stdout to client */    //line:netp:servedynamic:dup2
-        Execve(filename, emptylist, environ); /* Run CGI program */ //line:netp:servedynamic:execve
+        setenv("QUERY_STRING", cgiargs, 1);                         
+        Dup2(fd, STDOUT_FILENO); /* Redirect stdout to client */    
+        Execve(filename, emptylist, environ); /* Run CGI program */ 
     }
-    Wait(NULL); /* Parent waits for and reaps child */ //line:netp:servedynamic:wait
+    Wait(NULL); /* Parent waits for and reaps child */ 
 }

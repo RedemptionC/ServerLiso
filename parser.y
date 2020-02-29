@@ -213,17 +213,10 @@ request_header: token ows t_colon ows text ows t_crlf {
 }
 
 request_headers:request_header{
-		// $$=$1;
-		// snprintf($$,8192,"%s",$1);
 		YPRINTF("request_headers:Matched rule 1\n");
-		// strcpy(parsing_request->headers[parsing_request->header_count].header_name, $1->header_count);
-		// strcpy(parsing_request->headers[parsing_request->header_count].header_value, $1->header_value);
-		// parsing_request->header_count++;
 	};
 	| request_headers request_header{
 		YPRINTF("request_headers:Matched rule 2\n");
-		// snprintf($$,8192,"%s%s",$1,$2);
-		// parsing_request->header_count++;
 	}
 
 
@@ -235,7 +228,6 @@ request_headers:request_header{
  */
 request: request_line request_headers t_crlf{
 	YPRINTF("parsing_request: Matched Success.\n");
-	// YPRINTF("THIS IS THE REQUEST:\n%s",$2);
 	return SUCCESS;
 };
 
@@ -254,7 +246,4 @@ void set_parsing_options(char *buf, size_t siz, Request *request)
 void yyerror (char *s) 
 {
 	fprintf (stderr, "%s\n", s);
-	// yyrestart(yyin);
-	// YY_FLUSH_BUFFER();
-	// yy_flush_buffer();
 }

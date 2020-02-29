@@ -6,7 +6,7 @@ FLAGS = -g -Wall
 LDFLAGS = -lpthread
 
 default:all
-
+ 
 all: lisod example 
 
 lex.yy.c: lexer.l
@@ -26,7 +26,6 @@ example: $(OBJ) example.o
 lisod: lisod.o csapp.o $(OBJ)   $(LDFLAGS) 
 	$(CC) -o $@ $^ $(CFLAGS) $(FLAGS)
 
-
 run:
 	./lisod 15441
 
@@ -43,6 +42,5 @@ test-remote:
 clean:
 	rm -f *~ *.o example lex.yy.c y.tab.c y.tab.h lisod
 rebuild:
-	# 可以这么写🐎
 	make clean
 	make 
