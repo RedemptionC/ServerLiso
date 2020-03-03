@@ -1,19 +1,33 @@
 #include "csapp.h"
 #include "parse.h"
 
-void usage(char *liso)
-{
-    char buf[1024];
-    sprintf(buf, "Usage :%s <http port> <https port> <log file> <www folder> <cgi script path> <private key file> <certificate file> ", liso);
-    unix_error(buf);
-}
-
+// 当使用不当时，提供帮助信息
+void usage(char *liso);
+// 根据提供的socket，用网络io读取http请求的内容到缓存区，并将内容传递给parser，如果解析成功
+// 则将得到的http request对象传递给deal_with_request作进一步处理，若解析失败，则返回404
 void process_request(int sockfd, fd_set *ready_set);
+// 根据request method(GET,HEAD,POST)将请求传递给相应的函数处理，若是三者之外的method，返回
+// Not Implemented
 void deal_with_request(int sockfd, Request *req);
+// 打印http request内容
 void print_request(Request *req);
 void do_head(int sockfd, Request *req);
 void do_get(int sockfd, Request *req);
 void do_post(int sockfd, Request *req);
+// 返回所请求的静态内容：首先返回header，然后通过内存映射和io，将请求的文件内容发送给client
+void serve_static(int fd, char *filename, int filesize, int withBody);
+// 返回所请求的动态内容：使用fork创建子进程，子进程通过设置环境变量传递参数，并通过dup2将
+// 子进程的标准输出重定向至clientFd，再通过execve执行cgi程序，实现提供动态内容
+void serve_dynamic(int fd, char *filename, char *cgiargs);
+// 判断请求目标是静态内容还是动态，并获取程序运行参数
+int parse_uri(char *uri, char *filename, char *cgiargs);
+// 从header中根据key获取value
+void get_header_value(Request *request, const char *hname, char *hvalue);
+// 根据文件类型，设置response中content-type
+void get_filetype(char *filename, char *filetype);
+// 根据给出的error code,error msg,返回一条错误信息(html 形式)
+void clienterror(int fd, char *cause, char *errnum,
+                 char *shortmsg, char *longmsg);
 
 int main(int argc, char **argv)
 {
@@ -82,6 +96,13 @@ int main(int argc, char **argv)
         }
     }
 }
+void usage(char *liso)
+{
+    char buf[1024];
+    sprintf(buf, "Usage :%s <http port>  ", liso);
+    unix_error(buf);
+}
+
 void process_request(int sockfd, fd_set *ready_set)
 {
     int len;
@@ -246,26 +267,26 @@ int parse_uri(char *uri, char *filename, char *cgiargs)
     char *ptr;
 
     if (!strstr(uri, "cgi-bin"))
-    { /* Static content */                 
-        strcpy(cgiargs, "");               
-        strcpy(filename, ".");             
-        strcat(filename, uri);             
-        if (uri[strlen(uri) - 1] == '/')   
-            strcat(filename, "home.html"); 
+    { /* Static content */
+        strcpy(cgiargs, "");
+        strcpy(filename, ".");
+        strcat(filename, uri);
+        if (uri[strlen(uri) - 1] == '/')
+            strcat(filename, "home.html");
         return 1;
     }
     else
-    { /* Dynamic content */    
-        ptr = index(uri, '?'); 
+    { /* Dynamic content */
+        ptr = index(uri, '?');
         if (ptr)
         {
             strcpy(cgiargs, ptr + 1);
             *ptr = '\0';
         }
         else
-            strcpy(cgiargs, ""); 
-        strcpy(filename, ".");   
-        strcat(filename, uri);   
+            strcpy(cgiargs, "");
+        strcpy(filename, ".");
+        strcat(filename, uri);
         return 0;
     }
 }
@@ -312,24 +333,24 @@ void serve_static(int fd, char *filename, int filesize, int withBody)
     char *srcp, filetype[MAXLINE], buf[MAXBUF];
 
     /* Send response headers to client */
-    get_filetype(filename, filetype);    
-    sprintf(buf, "HTTP/1.0 200 OK\r\n"); 
+    get_filetype(filename, filetype);
+    sprintf(buf, "HTTP/1.0 200 OK\r\n");
     sprintf(buf, "%sServer: Liso Web Server\r\n", buf);
     sprintf(buf, "%sConnection: close\r\n", buf);
     sprintf(buf, "%sContent-length: %d\r\n", buf, filesize);
     sprintf(buf, "%sContent-type: %s\r\n\r\n", buf, filetype);
-    Rio_writen(fd, buf, strlen(buf)); 
+    Rio_writen(fd, buf, strlen(buf));
     printf("Response headers:\n");
     printf("%s", buf);
 
     if (withBody)
     {
         /* Send response body to client */
-        srcfd = Open(filename, O_RDONLY, 0);                        
-        srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0); 
-        Close(srcfd);                                               
-        Rio_writen(fd, srcp, filesize);                             
-        Munmap(srcp, filesize);                                     
+        srcfd = Open(filename, O_RDONLY, 0);
+        srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
+        Close(srcfd);
+        Rio_writen(fd, srcp, filesize);
+        Munmap(srcp, filesize);
     }
 }
 // 根据给定键，设置值
@@ -356,11 +377,11 @@ void serve_dynamic(int fd, char *filename, char *cgiargs)
     Rio_writen(fd, buf, strlen(buf));
 
     if (Fork() == 0)
-    { /* Child */ 
+    { /* Child */
         /* Real server would set all CGI vars here */
-        setenv("QUERY_STRING", cgiargs, 1);                         
-        Dup2(fd, STDOUT_FILENO); /* Redirect stdout to client */    
-        Execve(filename, emptylist, environ); /* Run CGI program */ 
+        setenv("QUERY_STRING", cgiargs, 1);
+        Dup2(fd, STDOUT_FILENO);              /* Redirect stdout to client */
+        Execve(filename, emptylist, environ); /* Run CGI program */
     }
-    Wait(NULL); /* Parent waits for and reaps child */ 
+    Wait(NULL); /* Parent waits for and reaps child */
 }
