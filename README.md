@@ -21,17 +21,12 @@ one_req.py      (obsolete) 测试代码
 parse.c
 parse.h
 parser.y        parser配置文件
+demo.html       html demo
 sample_request_example
 sample_request_realistic
 
 ## 程序运行基本流程
-~~服务器(下用Liso指代)首先建立一个可用于listen的socket
-因为本服务器是基于select实现并发，其中(至少)需要一个fdset用来监听，是否可读（对于listen socket
-可读是指有新的client请求连接，对于client，则是代表client发来了数据处于可读状态），所以首先把
-listen socket的fd(file descriptor,文件描述符)加入fdset，然后在一个恒为真的循环中不断的判断可读
-的fd，如果是listen socket可读，那么用accept，将新连接的client的fd加入fdset，如果是client的fd可读，
-那么开始处理~~
-👆 用流程图啥的吧
+![control flow](./controFlow.png)
 
 ## 运行方式
 切换到当前目录

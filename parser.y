@@ -8,7 +8,7 @@
 #include "parse.h"
 
 /* Define YACCDEBUG to enable debug messages for this lex file */
-#define YACCDEBUG 1
+/* #define YACCDEBUG 1 */
 //for debug
 // #define YYDEBUG 1
 #define YYERROR_VERBOSE
@@ -26,7 +26,7 @@ void set_parsing_options(char *buf, size_t siz, Request *parsing_request);
 
 /* yyparse() calls yylex() to get tokens */
 extern int yylex();
-// extern yyin; // 好像不能在这里restart
+
 
 /*
 ** Global variables required for parsing from buffer

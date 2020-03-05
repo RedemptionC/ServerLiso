@@ -42,7 +42,7 @@ int main(int argc, char **argv)
     int listenfd, connfd;
     fd_set read_fds, ready_fds;
     FD_ZERO(&read_fds);
-    FD_ZERO(&read_fds);
+    FD_ZERO(&ready_fds);
 
     // 记录最大的fd+1，在select中使用
     int max_fd;
@@ -62,7 +62,7 @@ int main(int argc, char **argv)
         ready_fds = read_fds;
         // 设置timeout为NULL,永远不会timeout，一直等到有readyfd
         int rs = Select(max_fd, &ready_fds, NULL, NULL, NULL);
-        printf("result of select:%d\n", rs);
+        // printf("result of select:%d\n", rs);
         // 如果listenfd处于ready，说明可以accept
         if (FD_ISSET(listenfd, &ready_fds))
         {
@@ -80,7 +80,7 @@ int main(int argc, char **argv)
             {
                 max_fd = connfd + 1;
                 // FOR DEBUG
-                printf("maxfd: %d\n", max_fd);
+                // printf("maxfd: %d\n", max_fd);
             }
         }
         else
@@ -99,8 +99,9 @@ int main(int argc, char **argv)
 void usage(char *liso)
 {
     char buf[1024];
-    sprintf(buf, "Usage :%s <http port>  ", liso);
-    unix_error(buf);
+    sprintf(buf, "Usage :%s <http port> \n", liso);
+    fprintf(stderr,buf);
+    exit(0);
 }
 
 void process_request(int sockfd, fd_set *ready_set)
@@ -113,7 +114,7 @@ void process_request(int sockfd, fd_set *ready_set)
     Rio_readinitb(&rio, sockfd);
     while ((len = Rio_readlineb(&rio, line, MAXLINE)) > 0)
     {
-        fprintf(stdout, "%d says :%s", sockfd, line);
+        // fprintf(stdout, "%d says :%s", sockfd, line);
         sprintf(buf, "%s%s", buf, line);
         // 但是末尾的\r\n也要算进去
         size += len;
@@ -132,6 +133,7 @@ void process_request(int sockfd, fd_set *ready_set)
     Request *req = parse(buf, size, sockfd);
     if (req != NULL)
     {
+        print_request(req);
         deal_with_request(sockfd, req);
     }
     else
@@ -187,6 +189,7 @@ void do_get(int sockfd, Request *req)
         }
         // 返回静态内容
         serve_static(sockfd, filename, sbuf.st_size, 1);
+        return;
     }
     if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode))
     {
@@ -293,6 +296,7 @@ int parse_uri(char *uri, char *filename, char *cgiargs)
 void clienterror(int fd, char *cause, char *errnum,
                  char *shortmsg, char *longmsg)
 {
+    fprintf(stdout,"CLIENT %d %s ERROR CODE : %s\n",fd,shortmsg,errnum);
     char buf[MAXLINE], body[MAXBUF];
 
     /* Build the HTTP response body */
@@ -340,8 +344,7 @@ void serve_static(int fd, char *filename, int filesize, int withBody)
     sprintf(buf, "%sContent-length: %d\r\n", buf, filesize);
     sprintf(buf, "%sContent-type: %s\r\n\r\n", buf, filetype);
     Rio_writen(fd, buf, strlen(buf));
-    printf("Response headers:\n");
-    printf("%s", buf);
+
 
     if (withBody)
     {
@@ -378,7 +381,6 @@ void serve_dynamic(int fd, char *filename, char *cgiargs)
 
     if (Fork() == 0)
     { /* Child */
-        /* Real server would set all CGI vars here */
         setenv("QUERY_STRING", cgiargs, 1);
         Dup2(fd, STDOUT_FILENO);              /* Redirect stdout to client */
         Execve(filename, emptylist, environ); /* Run CGI program */
